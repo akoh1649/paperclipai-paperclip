@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, Moon, Settings, Sun } from "lucide-react";
 import { Link, Outlet, useLocation, useNavigate, useNavigationType, useParams } from "@/lib/router";
@@ -56,6 +57,7 @@ function readRememberedInstanceSettingsPath(): string {
 }
 
 export function Layout() {
+  const { t } = useTranslation("common");
   const { sidebarOpen, setSidebarOpen, toggleSidebar, isMobile } = useSidebar();
   const { openNewIssue, openOnboarding } = useDialog();
   const { togglePanelVisible } = usePanel();
@@ -328,7 +330,7 @@ export function Layout() {
             type="button"
             className="fixed inset-0 z-40 bg-black/50"
             onClick={() => setSidebarOpen(false)}
-            aria-label="Close sidebar"
+            aria-label={t("layout.closeSidebar", { defaultValue: "Close sidebar" })}
           />
         )}
 
@@ -366,8 +368,8 @@ export function Layout() {
                   <Link
                     to={instanceSettingsTarget}
                     state={SIDEBAR_SCROLL_RESET_STATE}
-                    aria-label="Instance settings"
-                    title="Instance settings"
+                    aria-label={t("layout.instanceSettings", { defaultValue: "Instance settings" })}
+                    title={t("layout.instanceSettings", { defaultValue: "Instance settings" })}
                     onClick={() => {
                       if (isMobile) setSidebarOpen(false);
                     }}
@@ -381,8 +383,8 @@ export function Layout() {
                   size="icon-sm"
                   className="text-muted-foreground shrink-0"
                   onClick={toggleTheme}
-                  aria-label={`Switch to ${nextTheme} mode`}
-                  title={`Switch to ${nextTheme} mode`}
+                  aria-label={t("layout.switchTheme", { defaultValue: "Switch to {{theme}} mode", theme: nextTheme })}
+                  title={t("layout.switchTheme", { defaultValue: "Switch to {{theme}} mode", theme: nextTheme })}
                 >
                   {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                 </Button>
@@ -425,8 +427,8 @@ export function Layout() {
                   <Link
                     to={instanceSettingsTarget}
                     state={SIDEBAR_SCROLL_RESET_STATE}
-                    aria-label="Instance settings"
-                    title="Instance settings"
+                    aria-label={t("layout.instanceSettings", { defaultValue: "Instance settings" })}
+                    title={t("layout.instanceSettings", { defaultValue: "Instance settings" })}
                     onClick={() => {
                       if (isMobile) setSidebarOpen(false);
                     }}
@@ -440,8 +442,8 @@ export function Layout() {
                   size="icon-sm"
                   className="text-muted-foreground shrink-0"
                   onClick={toggleTheme}
-                  aria-label={`Switch to ${nextTheme} mode`}
-                  title={`Switch to ${nextTheme} mode`}
+                  aria-label={t("layout.switchTheme", { defaultValue: "Switch to {{theme}} mode", theme: nextTheme })}
+                  title={t("layout.switchTheme", { defaultValue: "Switch to {{theme}} mode", theme: nextTheme })}
                 >
                   {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                 </Button>

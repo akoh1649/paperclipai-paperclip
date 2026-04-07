@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   DocumentRevision,
@@ -152,6 +153,7 @@ export function IssueDocumentsSection({
   ) => Promise<void>;
   extraActions?: ReactNode;
 }) {
+  const { t } = useTranslation("issues");
   const queryClient = useQueryClient();
   const location = useLocation();
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
@@ -293,7 +295,7 @@ export function IssueDocumentsSection({
   const isEmpty = sortedDocuments.length === 0 && !issue.legacyPlanDocument;
   const newDocumentKeyError =
     draft?.isNew && draft.key.trim().length > 0 && !DOCUMENT_KEY_PATTERN.test(draft.key.trim())
-      ? "Use lowercase letters, numbers, -, or _, and start with a letter or number."
+      ? t("documents.keyValidation", { defaultValue: "Use lowercase letters, numbers, -, or _, and start with a letter or number." })
       : null;
 
   const resetAutosaveState = useCallback(() => {
@@ -688,19 +690,19 @@ export function IssueDocumentsSection({
           {extraActions}
           <Button variant="outline" size="sm" onClick={beginNewDocument} className="shrink-0">
             <Plus className="mr-1.5 h-3.5 w-3.5" />
-            <span className="hidden sm:inline">New document</span>
-            <span className="sm:hidden">New</span>
+            <span className="hidden sm:inline">{t("documents.newDocument", { defaultValue: "New document" })}</span>
+            <span className="sm:hidden">{t("documents.new", { defaultValue: "New" })}</span>
           </Button>
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2 min-w-0">
-          <h3 className="w-full text-sm font-medium text-muted-foreground shrink-0 sm:w-auto">Documents</h3>
+          <h3 className="w-full text-sm font-medium text-muted-foreground shrink-0 sm:w-auto">{t("documents.heading", { defaultValue: "Documents" })}</h3>
           <div className="flex flex-wrap items-center gap-2 min-w-0 sm:ml-auto">
             {extraActions}
             <Button variant="outline" size="sm" onClick={beginNewDocument} className="shrink-0">
               <Plus className="mr-1.5 h-3.5 w-3.5" />
-              <span className="hidden sm:inline">New document</span>
-              <span className="sm:hidden">New</span>
+              <span className="hidden sm:inline">{t("documents.newDocument", { defaultValue: "New document" })}</span>
+              <span className="sm:hidden">{t("documents.new", { defaultValue: "New" })}</span>
             </Button>
           </div>
         </div>
@@ -720,7 +722,7 @@ export function IssueDocumentsSection({
             onChange={(event) =>
               setDraft((current) => current ? { ...current, key: event.target.value.toLowerCase() } : current)
             }
-            placeholder="Document key"
+            placeholder={t("documents.keyPlaceholder", { defaultValue: "Document key" })}
           />
           {newDocumentKeyError && (
             <p className="text-xs text-destructive">{newDocumentKeyError}</p>
@@ -731,7 +733,7 @@ export function IssueDocumentsSection({
               onChange={(event) =>
                 setDraft((current) => current ? { ...current, title: event.target.value } : current)
               }
-              placeholder="Optional title"
+              placeholder={t("documents.optionalTitle", { defaultValue: "Optional title" })}
             />
           )}
           <MarkdownEditor
@@ -739,7 +741,7 @@ export function IssueDocumentsSection({
             onChange={(body) =>
               setDraft((current) => current ? { ...current, body } : current)
             }
-            placeholder="Markdown body"
+            placeholder={t("documents.markdownBody", { defaultValue: "Markdown body" })}
             bordered={false}
             className="bg-transparent"
             contentClassName="min-h-[220px] text-[15px] leading-7"
@@ -757,7 +759,7 @@ export function IssueDocumentsSection({
               onClick={() => void commitDraft(draft, { clearAfterSave: false, trackAutosave: false })}
               disabled={upsertDocument.isPending}
             >
-              {upsertDocument.isPending ? "Saving..." : "Create document"}
+              {upsertDocument.isPending ? t("documents.saving", { defaultValue: "Saving..." }) : t("documents.createDocument", { defaultValue: "Create document" })}
             </Button>
           </div>
         </div>
@@ -848,9 +850,9 @@ export function IssueDocumentsSection({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-72">
-                        <DropdownMenuLabel>Revision history</DropdownMenuLabel>
+                        <DropdownMenuLabel>{t("documents.revisionHistory", { defaultValue: "Revision history" })}</DropdownMenuLabel>
                         {revisionMenuOpenKey === doc.key && isFetchingDocumentRevisions && rawRevisionHistory.length === 0 ? (
-                          <DropdownMenuItem disabled>Loading revisions...</DropdownMenuItem>
+                          <DropdownMenuItem disabled>{t("documents.loadingRevisions", { defaultValue: "Loading revisions..." })}</DropdownMenuItem>
                         ) : revisionHistory.length > 0 ? (
                           <DropdownMenuRadioGroup value={selectedRevisionId ?? currentRevision.id ?? ""}>
                             {revisionHistory.map((revision) => {
@@ -880,7 +882,7 @@ export function IssueDocumentsSection({
                             })}
                           </DropdownMenuRadioGroup>
                         ) : (
-                          <DropdownMenuItem disabled>No revisions yet</DropdownMenuItem>
+                          <DropdownMenuItem disabled>{t("documents.noRevisionsYet", { defaultValue: "No revisions yet" })}</DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -901,7 +903,7 @@ export function IssueDocumentsSection({
                       "text-muted-foreground transition-colors",
                       copiedDocumentKey === doc.key && "text-foreground",
                     )}
-                    title={copiedDocumentKey === doc.key ? "Copied" : "Copy document"}
+                    title={copiedDocumentKey === doc.key ? t("documents.copied", { defaultValue: "Copied" }) : t("documents.copy_document", { defaultValue: "Copy document" })}
                     onClick={() => void copyDocumentBody(doc.key, displayedBody)}
                   >
                     {copiedDocumentKey === doc.key ? (
@@ -916,7 +918,7 @@ export function IssueDocumentsSection({
                         variant="ghost"
                         size="icon-xs"
                         className="text-muted-foreground"
-                        title="Document actions"
+                        title={t("documents.document_actions", { defaultValue: "Document actions" })}
                       >
                         <MoreHorizontal className="h-3.5 w-3.5" />
                       </Button>
@@ -925,7 +927,7 @@ export function IssueDocumentsSection({
                       {!isHistoricalPreview ? (
                         <DropdownMenuItem onClick={() => beginEdit(doc.key)}>
                           <FilePenLine className="h-3.5 w-3.5" />
-                          Edit document
+                          {t("documents.edit_document", { defaultValue: "Edit document" })}
                         </DropdownMenuItem>
                       ) : null}
                       {!isHistoricalPreview ? <DropdownMenuSeparator /> : null}
@@ -933,12 +935,12 @@ export function IssueDocumentsSection({
                         onClick={() => downloadDocumentFile(doc.key, displayedBody)}
                       >
                         <Download className="h-3.5 w-3.5" />
-                        Download document
+                        {t("documents.download_document", { defaultValue: "Download document" })}
                       </DropdownMenuItem>
                       {doc.latestRevisionNumber > 1 ? (
                         <DropdownMenuItem onClick={() => setDiffViewKey(doc.key)}>
                           <Diff className="h-3.5 w-3.5" />
-                          View diff
+                          {t("documents.view_diff", { defaultValue: "View diff" })}
                         </DropdownMenuItem>
                       ) : null}
                       {canDeleteDocuments ? <DropdownMenuSeparator /> : null}
@@ -982,7 +984,7 @@ export function IssueDocumentsSection({
                             Viewing revision {selectedHistoricalRevision.revisionNumber}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            This is a historical preview. Restoring it creates a new latest revision and keeps history append-only.
+                            {t("historicalPreview", { defaultValue: "This is a historical preview. Restoring it creates a new latest revision and keeps history append-only." })}
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -1002,8 +1004,8 @@ export function IssueDocumentsSection({
                             disabled={restoreDocumentRevision.isPending}
                           >
                             {restoreDocumentRevision.isPending && restoreDocumentRevision.variables?.key === doc.key
-                              ? "Restoring..."
-                              : "Restore this revision"}
+                              ? t("documents.restoring", { defaultValue: "Restoring..." })
+                              : t("documents.restoreRevision", { defaultValue: "Restore this revision" })}
                           </Button>
                         </div>
                       </div>
@@ -1015,7 +1017,7 @@ export function IssueDocumentsSection({
                         <div className="space-y-1">
                           <p className="text-sm font-medium text-amber-200">Out of date</p>
                           <p className="text-xs text-muted-foreground">
-                            This document changed while you were editing. Your local draft is preserved and autosave is paused.
+                            {t("documentChanged", { defaultValue: "This document changed while you were editing. Your local draft is preserved and autosave is paused." })}
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -1030,7 +1032,7 @@ export function IssueDocumentsSection({
                               )
                             }
                           >
-                            {activeConflict.showRemote ? "Hide remote" : "Review remote"}
+                            {activeConflict.showRemote ? t("documents.hideRemote", { defaultValue: "Hide remote" }) : t("documents.reviewRemote", { defaultValue: "Review remote" })}
                           </Button>
                           <Button
                             variant="outline"
@@ -1051,7 +1053,7 @@ export function IssueDocumentsSection({
                             onClick={() => void overwriteDocumentFromDraft(doc.key)}
                             disabled={upsertDocument.isPending}
                           >
-                            {upsertDocument.isPending ? "Saving..." : "Overwrite remote"}
+                            {upsertDocument.isPending ? t("documents.saving", { defaultValue: "Saving..." }) : t("documents.overwriteRemote", { defaultValue: "Overwrite remote" })}
                           </Button>
                         </div>
                       </div>
@@ -1077,7 +1079,7 @@ export function IssueDocumentsSection({
                         markDocumentDirty(doc.key);
                         setDraft((current) => current ? { ...current, title: event.target.value } : current);
                       }}
-                      placeholder="Optional title"
+                      placeholder={t("documents.optionalTitle", { defaultValue: "Optional title" })}
                     />
                   )}
                   <div
@@ -1101,7 +1103,7 @@ export function IssueDocumentsSection({
                             return current;
                           });
                         }}
-                        placeholder="Markdown body"
+                        placeholder={t("documents.markdownBody", { defaultValue: "Markdown body" })}
                         bordered={false}
                         className="bg-transparent"
                         contentClassName={documentBodyContentClassName}
@@ -1177,7 +1179,7 @@ export function IssueDocumentsSection({
                       onClick={() => deleteDocument.mutate(doc.key)}
                       disabled={deleteDocument.isPending}
                     >
-                      {deleteDocument.isPending ? "Deleting..." : "Delete"}
+                      {deleteDocument.isPending ? t("documents.deleting", { defaultValue: "Deleting..." }) : t("documents.delete", { defaultValue: "Delete" })}
                     </Button>
                   </div>
                 </div>
