@@ -20,6 +20,10 @@ import { PluginLauncherProvider } from "./plugins/launchers";
 import "@mdxeditor/editor/style.css";
 import "./index.css";
 
+// Initialize i18n (side-effect: configures i18next singleton before React renders)
+import "./i18n";
+import "./i18n/types";
+
 initPluginBridge(React, ReactDOM);
 
 if ("serviceWorker" in navigator) {

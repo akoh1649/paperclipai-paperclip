@@ -1,4 +1,5 @@
 import { Link } from "@/lib/router";
+import i18n from "@/i18n";
 import { Identity } from "./Identity";
 import { timeAgo } from "../lib/timeAgo";
 import { cn } from "../lib/utils";
@@ -43,7 +44,7 @@ export function ActivityRow({ event, agentMap, entityNameMap, entityTitleMap, cl
     : entityLink(event.entityType, event.entityId, name);
 
   const actor = event.actorType === "agent" ? agentMap.get(event.actorId) : null;
-  const actorName = actor?.name ?? (event.actorType === "system" ? "System" : event.actorType === "user" ? "Board" : event.actorId || "Unknown");
+  const actorName = actor?.name ?? (event.actorType === "system" ? i18n.t("activity.actorSystem", { defaultValue: "System" }) : event.actorType === "user" ? i18n.t("activity.actorBoard", { defaultValue: "Board" }) : event.actorId || i18n.t("activity.actorUnknown", { defaultValue: "Unknown" }));
 
   const inner = (
     <div className="flex gap-3">
