@@ -17,6 +17,7 @@ import { authApi } from "../api/auth";
 import { companiesApi } from "../api/companies";
 import { projectsApi } from "../api/projects";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "../components/EmptyState";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { MarkdownBody } from "../components/MarkdownBody";
@@ -603,6 +604,7 @@ export function CompanyExport() {
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
   const [checkedFiles, setCheckedFiles] = useState<Set<string>>(new Set());
   const [treeSearch, setTreeSearch] = useState("");
+  const [includeSecrets, setIncludeSecrets] = useState(false);
   const [taskLimit, setTaskLimit] = useState(TASKS_PAGE_SIZE);
   const savedExpandedRef = useRef<Set<string> | null>(null);
   const initialFileFromUrl = useRef(filePathFromLocation(location.pathname));
@@ -731,6 +733,7 @@ export function CompanyExport() {
         include: { company: true, agents: true, projects: true, issues: true },
         selectedFiles: Array.from(checkedFiles).sort(),
         sidebarOrder,
+        includeSecrets,
       }),
     onSuccess: (result) => {
       const resultCheckedFiles = new Set(Object.keys(result.files));
@@ -945,6 +948,29 @@ export function CompanyExport() {
                 {warnings.length} warning{warnings.length === 1 ? "" : "s"}
               </span>
             )}
+            {includeSecrets && (() => {
+              const secretCount = new Set(exportData?.manifest.envInputs?.filter((e) => e.kind === "secret" && e.secretName).map((e) => e.secretName)).size;
+              return secretCount > 0 ? (
+                <span className="rounded-md border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-xs text-amber-500">
+                  {secretCount} secret{secretCount === 1 ? "" : "s"} will be included
+                </span>
+              ) : null;
+            })()}
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm">
+              <Checkbox
+                id="include-secrets"
+                checked={includeSecrets}
+                onCheckedChange={(checked) => setIncludeSecrets(Boolean(checked))}
+              />
+              <label htmlFor="include-secrets" className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+                Include secrets
+              </label>
+              {includeSecrets && (
+                <span className="text-xs text-amber-500">(secrets exported as plaintext)</span>
+              )}
+            </div>
           </div>
           <Button
             size="sm"
