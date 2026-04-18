@@ -60,6 +60,7 @@ import { ApprovalCard } from "../components/ApprovalCard";
 import { InlineEditor } from "../components/InlineEditor";
 import { IssueChatThread, type IssueChatComposerHandle } from "../components/IssueChatThread";
 import { IssueDocumentsSection } from "../components/IssueDocumentsSection";
+import { MissionSummaryPanel, type MissionPanelAction } from "../components/MissionSummaryPanel";
 import { IssuesList } from "../components/IssuesList";
 import { IssueProperties } from "../components/IssueProperties";
 import { IssueWorkspaceCard } from "../components/IssueWorkspaceCard";
@@ -881,6 +882,7 @@ export function IssueDetail() {
     approvalId: string;
     action: "approve" | "reject";
   } | null>(null);
+  const [missionActionError, setMissionActionError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [attachmentDragActive, setAttachmentDragActive] = useState(false);
@@ -911,6 +913,17 @@ export function IssueDetail() {
     enabled: !!issueId,
   });
   const resolvedCompanyId = issue?.companyId ?? selectedCompanyId;
+  const isMissionIssue = issue?.originKind === "mission";
+  const {
+    data: missionSummary,
+    isLoading: missionSummaryLoading,
+    error: missionSummaryError,
+  } = useQuery({
+    queryKey: issue?.id ? queryKeys.issues.missionSummary(issue.id) : ["issues", "mission-summary", "pending"],
+    queryFn: () => issuesApi.getMissionSummary(issue!.id),
+    enabled: !!issue?.id && isMissionIssue,
+    retry: false,
+  });
   const commentComposerDisabledReason = useMemo(() => {
     if (!issue?.currentExecutionWorkspace || !isClosedIsolatedExecutionWorkspace(issue.currentExecutionWorkspace)) {
       return null;
@@ -1169,6 +1182,27 @@ export function IssueDetail() {
     }
   }, [queryClient, selectedCompanyId]);
 
+  const invalidateMissionState = useCallback(() => {
+    invalidateIssueDetail();
+    invalidateIssueRunState();
+    queryClient.invalidateQueries({ queryKey: queryKeys.issues.comments(issueId!) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.issues.missionSummary(issue?.id ?? issueId!) });
+    if (resolvedCompanyId) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.issues.listByParent(resolvedCompanyId, issue?.id ?? issueId!) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.approvals.list(resolvedCompanyId) });
+    }
+    queryClient.invalidateQueries({ queryKey: queryKeys.issues.approvals(issueId!) });
+    invalidateIssueCollections();
+  }, [
+    invalidateIssueCollections,
+    invalidateIssueDetail,
+    invalidateIssueRunState,
+    issue?.id,
+    issueId,
+    queryClient,
+    resolvedCompanyId,
+  ]);
+
   const applyOptimisticIssueCacheUpdate = useCallback((refs: Iterable<string>, data: Record<string, unknown>) => {
     queryClient.setQueriesData<Issue>(
       { queryKey: ["issues", "detail"] },
@@ -1314,6 +1348,115 @@ export function IssueDetail() {
     },
     onSettled: () => {
       setPendingApprovalAction(null);
+    },
+  });
+
+  const missionAction = useMutation({
+    mutationFn: async ({ action }: { action: MissionPanelAction }) => {
+      if (!issue) throw new Error("Mission issue is still loading");
+      switch (action) {
+        case "init":
+          return issuesApi.initMission(issue.id);
+        case "decompose":
+          return issuesApi.decomposeMission(issue.id);
+        case "advance":
+          return issuesApi.advanceMission(issue.id);
+        case "pause":
+          return issuesApi.update(issue.id, {
+            status: "blocked",
+            comment: [
+              "Mission paused",
+              "",
+              "- Board mission controls paused this mission by moving the mission issue to `blocked`.",
+              "- Resume it from the mission controls when scheduling should continue.",
+            ].join("\n"),
+          });
+        case "resume":
+          return issuesApi.update(issue.id, {
+            status: "todo",
+            comment: [
+              "Mission resumed",
+              "",
+              "- Board mission controls returned this mission to `todo` so it can be checked out and advanced again.",
+            ].join("\n"),
+          });
+        case "cancel":
+          return issuesApi.update(issue.id, {
+            status: "cancelled",
+            comment: [
+              "Mission cancelled",
+              "",
+              "- Board mission controls cancelled this mission.",
+              "- Existing child issues remain auditable in the issue tree.",
+            ].join("\n"),
+          });
+        case "requestApproval":
+          if (!resolvedCompanyId) throw new Error("Company context is not available");
+          return approvalsApi.create(resolvedCompanyId, {
+            type: "request_board_approval",
+            issueIds: [issue.id],
+            payload: {
+              title: `Approve mission next step: ${issue.title}`,
+              summary: missionSummary?.next_action ?? "Review the mission state before continuing.",
+              recommendedAction: "Approve continued mission execution or leave a decision note with the required change.",
+              nextActionOnApproval: "The assigned orchestrator can advance the mission after approval resolves.",
+              risks: [
+                "Advancing may wake workers or validators and incur additional model cost.",
+                "Approving without reviewing blockers can schedule work against incomplete state.",
+              ],
+            },
+          });
+      }
+    },
+    onMutate: ({ action }) => {
+      setMissionActionError(null);
+      return { action };
+    },
+    onSuccess: (_result, variables) => {
+      invalidateMissionState();
+      pushToast({
+        title: variables.action === "requestApproval"
+          ? "Approval requested"
+          : variables.action === "advance"
+            ? "Mission advanced"
+            : variables.action === "decompose"
+              ? "Mission decomposition synced"
+              : "Mission updated",
+        tone: "success",
+      });
+    },
+    onError: (err, variables) => {
+      const message = err instanceof Error ? err.message : "Unable to update mission";
+      setMissionActionError(message);
+      pushToast({
+        title: variables.action === "requestApproval" ? "Approval request failed" : "Mission action failed",
+        body: message,
+        tone: "error",
+      });
+    },
+  });
+
+  const waiveMissionFinding = useMutation({
+    mutationFn: ({ findingId, rationale }: { findingId: string; rationale: string }) => {
+      if (!issue) throw new Error("Mission issue is still loading");
+      return issuesApi.waiveMissionFinding(issue.id, findingId, { rationale });
+    },
+    onSuccess: (_result, variables) => {
+      invalidateMissionState();
+      pushToast({
+        title: "Finding waived",
+        body: variables.findingId,
+        tone: "success",
+      });
+    },
+    onError: (err) => {
+      const message = err instanceof Error ? err.message : "Unable to waive finding";
+      setMissionActionError(message);
+      pushToast({
+        title: "Finding waiver failed",
+        body: message,
+        tone: "error",
+      });
     },
   });
 
@@ -2402,6 +2545,20 @@ export function IssueDetail() {
         itemClassName="rounded-lg border border-border p-3"
         missingBehavior="placeholder"
       />
+
+      {isMissionIssue && (
+        <MissionSummaryPanel
+          summary={missionSummary}
+          isLoading={missionSummaryLoading}
+          error={missionSummaryError instanceof Error ? missionSummaryError : null}
+          issueStatus={issue.status}
+          pendingAction={missionAction.isPending ? missionAction.variables?.action ?? null : null}
+          actionError={missionActionError}
+          pendingWaiveFindingId={waiveMissionFinding.isPending ? waiveMissionFinding.variables?.findingId ?? null : null}
+          onAction={(action) => missionAction.mutate({ action })}
+          onWaiveFinding={(findingId, rationale) => waiveMissionFinding.mutate({ findingId, rationale })}
+        />
+      )}
 
       {showRichSubIssuesSection ? (
         <div className="space-y-3">
