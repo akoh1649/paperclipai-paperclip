@@ -56,6 +56,7 @@ import {
   SVG_CONTENT_TYPE,
 } from "../attachment-types.js";
 import { queueIssueAssignmentWakeup } from "../services/issue-assignment-wakeup.js";
+import { normalizeExclusiveAssigneePatch } from "../services/issue-assignee-patch.js";
 import {
   applyIssueExecutionPolicyTransition,
   normalizeIssueExecutionPolicy,
@@ -1260,14 +1261,15 @@ export function issueRoutes(
   router.post("/companies/:companyId/issues", validate(createIssueSchema), async (req, res) => {
     const companyId = req.params.companyId as string;
     assertCompanyAccess(req, companyId);
-    if (req.body.assigneeAgentId || req.body.assigneeUserId) {
+    const createBody = normalizeExclusiveAssigneePatch(req.body);
+    if (createBody.assigneeAgentId || createBody.assigneeUserId) {
       await assertCanAssignTasks(req, companyId);
     }
 
     const actor = getActorInfo(req);
-    const executionPolicy = normalizeIssueExecutionPolicy(req.body.executionPolicy);
+    const executionPolicy = normalizeIssueExecutionPolicy(createBody.executionPolicy);
     const issue = await svc.create(companyId, {
-      ...req.body,
+      ...createBody,
       executionPolicy,
       createdByAgentId: actor.agentId,
       createdByUserId: actor.actorType === "user" ? actor.actorId : null,
@@ -1318,13 +1320,14 @@ export function issueRoutes(
       Array.isArray(req.body.blockedByIssueIds)
         ? await svc.getRelationSummaries(existing.id)
         : null;
+    const requestBody = normalizeExclusiveAssigneePatch(req.body);
     const {
       comment: commentBody,
       reopen: reopenRequested,
       interrupt: interruptRequested,
       hiddenAt: hiddenAtRaw,
       ...updateFields
-    } = req.body;
+    } = requestBody;
     let interruptedRunId: string | null = null;
     const closedExecutionWorkspace = await getClosedIssueExecutionWorkspace(existing);
     const isAgentWorkUpdate = req.actor.type === "agent" && Object.keys(updateFields).length > 0;
@@ -1370,8 +1373,8 @@ export function issueRoutes(
     if (commentBody && reopenRequested === true && isClosed && updateFields.status === undefined) {
       updateFields.status = "todo";
     }
-    if (req.body.executionPolicy !== undefined) {
-      updateFields.executionPolicy = normalizeIssueExecutionPolicy(req.body.executionPolicy);
+    if (requestBody.executionPolicy !== undefined) {
+      updateFields.executionPolicy = normalizeIssueExecutionPolicy(requestBody.executionPolicy);
     }
     const previousExecutionPolicy = normalizeIssueExecutionPolicy(existing.executionPolicy ?? null);
     const nextExecutionPolicy =
@@ -1384,10 +1387,8 @@ export function issueRoutes(
       policy: nextExecutionPolicy,
       requestedStatus: typeof updateFields.status === "string" ? updateFields.status : undefined,
       requestedAssigneePatch: {
-        assigneeAgentId:
-          req.body.assigneeAgentId === undefined ? undefined : (req.body.assigneeAgentId as string | null),
-        assigneeUserId:
-          req.body.assigneeUserId === undefined ? undefined : (req.body.assigneeUserId as string | null),
+        assigneeAgentId: requestBody.assigneeAgentId === undefined ? undefined : (requestBody.assigneeAgentId as string | null),
+        assigneeUserId: requestBody.assigneeUserId === undefined ? undefined : (requestBody.assigneeUserId as string | null),
       },
       actor: {
         agentId: actor.agentId ?? null,
@@ -1474,10 +1475,8 @@ export function issueRoutes(
             issueId: id,
             companyId: existing.companyId,
             assigneePatch: {
-              assigneeAgentId:
-                req.body.assigneeAgentId === undefined ? "__omitted__" : req.body.assigneeAgentId,
-              assigneeUserId:
-                req.body.assigneeUserId === undefined ? "__omitted__" : req.body.assigneeUserId,
+              assigneeAgentId: requestBody.assigneeAgentId === undefined ? "__omitted__" : requestBody.assigneeAgentId,
+              assigneeUserId: requestBody.assigneeUserId === undefined ? "__omitted__" : requestBody.assigneeUserId,
             },
             currentAssignee: {
               assigneeAgentId: existing.assigneeAgentId,
