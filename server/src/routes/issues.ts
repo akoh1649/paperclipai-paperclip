@@ -2320,7 +2320,15 @@ export function issueRoutes(
       return;
     }
     assertCompanyAccess(req, issue.companyId);
-    if (!(await assertAgentRunCheckoutOwnership(req, res, issue))) return;
+    const actorAgentId = req.actor.type === "agent" ? req.actor.agentId : null;
+    // BLA-554: the issue assignee may post plain comments without an active run checkout.
+    // Scoped to: agent is the assignee, and the comment is not a reopen or interrupt request.
+    const isPmCommentAuthority = req.actor.type === "agent"
+      && !!actorAgentId
+      && actorAgentId === issue.assigneeAgentId
+      && req.body.reopen !== true
+      && req.body.interrupt !== true;
+    if (!isPmCommentAuthority && !(await assertAgentRunCheckoutOwnership(req, res, issue))) return;
     const closedExecutionWorkspace = await getClosedIssueExecutionWorkspace(issue);
     if (closedExecutionWorkspace) {
       respondClosedIssueExecutionWorkspace(res, closedExecutionWorkspace);
